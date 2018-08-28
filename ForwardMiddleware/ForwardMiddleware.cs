@@ -9,27 +9,20 @@
     using Microsoft.AspNetCore.Http;
     using Newtonsoft.Json.Linq;
     using Microsoft.Extensions.Logging;
-    using Microsoft.Extensions.Caching.Memory;
 
     public class ForwardMiddleware
     {
         /// <summary>
         /// The URL mapping(should read from cache).
         /// </summary>
-        private static Dictionary<string, DownSettings> UrlMapping = new Dictionary<string, DownSettings>
+        private static Dictionary<string, ApiModel> UrlMapping = new Dictionary<string, ApiModel>
         {
-            {"/api/values", new DownSettings
-                {
-                    FullUrl = "http://localhost:9999/api/persons/data",
-                    IsFree = false,
-                    ChargeCode = "0",
-                    ChargeCodeName = "code",
-                    IsResultEncrypted = false,
-                        
-                }}
+            {"/api/values", ApiModel.GetApiModels()[0]},
+            {"/api/val", ApiModel.GetApiModels()[1]},
         };
 
         private readonly RequestDelegate _next;
+        private readonly IHttpClientFactory _clientFactory;
         private readonly ILogger _logger;
 
         /// <summary>
@@ -37,10 +30,12 @@
         /// </summary>
         /// <param name="next">Next.</param>
         /// <param name="loggerFactory">Logger factory.</param>
-        public ForwardMiddleware(RequestDelegate next,ILoggerFactory loggerFactory)
+        /// <param name="clientFactory">Client factory.</param>
+        public ForwardMiddleware(RequestDelegate next, ILoggerFactory loggerFactory, IHttpClientFactory clientFactory)
         {
             _next = next;
             _logger = loggerFactory.CreateLogger<ForwardMiddleware>();
+            _clientFactory = clientFactory;
         }
 
         /// <summary>
@@ -52,7 +47,7 @@
         {
             var path = httpContext.Request.Path.Value;
 
-            DownSettings downSettings = null;
+            ApiModel downSettings = null;
             if (UrlMapping.ContainsKey(path))
             {
                 downSettings = UrlMapping[path];
@@ -64,36 +59,36 @@
             }
 
             var queryString = httpContext.Request.QueryString.Value;
-            if(!string.IsNullOrWhiteSpace(queryString))
+            if (!string.IsNullOrWhiteSpace(queryString))
             {
-                downSettings.FullUrl += $"?{queryString}";    
+                downSettings.Path += $"?{queryString}";
             }
 
             _logger.LogDebug($"forward request info => {downSettings.ToString()}");
 
-            var requestMessage = new HttpRequestMessage();
-            requestMessage.Method = new HttpMethod(httpContext.Request.Method);
-            requestMessage.Content = await BuildHttpContentAsync(httpContext.Request);
-            requestMessage.RequestUri = new Uri(downSettings.FullUrl);
+            var requestMessage = new HttpRequestMessage
+            {
+                Method = new HttpMethod(httpContext.Request.Method),
+                Content = await BuildHttpContentAsync(httpContext.Request),
+                RequestUri = new Uri(downSettings.Path)
+            };
 
             foreach (var header in httpContext.Request.Headers)
-            {                
+            {
                 requestMessage.Headers.TryAddWithoutValidation(header.Key, header.Value.ToArray());
             }
-         
+
             try
             {
-                using (HttpClient client = new HttpClient())
-                {
-                    var res = await client.SendAsync(requestMessage);
-                    var str = await res.Content.ReadAsStringAsync();
-                    _logger.LogDebug($"response res => {str}");
+                var client = _clientFactory.CreateClient(downSettings.Name);
+                var res = await client.SendAsync(requestMessage);
+                var str = await res.Content.ReadAsStringAsync();
+                _logger.LogDebug($"response res => {str}");
 
-                    DoCharge(downSettings, str);
+                DoCharge(downSettings, str);
 
-                    await httpContext.Response.WriteAsync(str);
-                    return;
-                }
+                await httpContext.Response.WriteAsync(str);
+                return;
             }
             catch (Exception ex)
             {
@@ -147,8 +142,8 @@
         /// </summary>
         /// <param name="settings">Settings.</param>
         /// <param name="json">Json.</param>
-        private void  DoCharge(DownSettings settings, string json)
-        {          
+        private void DoCharge(ApiModel settings, string json)
+        {
             if (!settings.IsFree
                 && !string.IsNullOrWhiteSpace(settings.ChargeCode)
                 && !string.IsNullOrWhiteSpace(settings.ChargeCodeName))
@@ -175,9 +170,9 @@
                 }
                 catch (System.Exception ex)
                 {
-                    _logger.LogError(ex,$"Do charge error");
+                    _logger.LogError(ex, $"Do charge error");
                 }
             }
         }
-    }  
+    }
 }
