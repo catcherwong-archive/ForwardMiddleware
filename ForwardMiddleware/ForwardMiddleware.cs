@@ -80,7 +80,7 @@
 
             try
             {
-                var client = _clientFactory.CreateClient(downSettings.Name);
+                var client = _clientFactory.CreateClient(downSettings.ApiExSettingName);
                 var res = await client.SendAsync(requestMessage);
                 var str = await res.Content.ReadAsStringAsync();
                 _logger.LogDebug($"response res => {str}");
