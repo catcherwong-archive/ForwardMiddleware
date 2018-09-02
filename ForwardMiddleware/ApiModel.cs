@@ -1,6 +1,5 @@
 ﻿namespace ForwardMiddleware
-{
-    using System.Collections.Generic;
+{    
     using Newtonsoft.Json;
     
     public class ApiModel
@@ -15,7 +14,13 @@
         /// Gets or sets the path.
         /// </summary>
         /// <value>The path.</value>
-        public string Path { get; set; }
+        public string FullPath { get; set; }
+
+        /// <summary>
+        /// Gets or sets the relate path.
+        /// </summary>
+        /// <value>The relate path.</value>
+        public string RelatePath { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether this <see cref="T:ForwardMiddleware.ApiModel"/> is free.
@@ -48,35 +53,6 @@
         public override string ToString()
         {
             return JsonConvert.SerializeObject(this);
-        }
-
-        /// <summary>
-        /// Gets the API models.
-        /// </summary>
-        /// <returns>The API models.</returns>
-        public static List<ApiModel> GetApiModels()
-        {
-            return new List<ApiModel>
-            {
-                new ApiModel
-                {
-                    ApiExSettingName = "Normal",
-                    Path = "http://localhost:9999/api/persons/data",
-                    IsFree = false,
-                    ChargeCode = "0",
-                    ChargeCodeName = "code",
-                    IsResultEncrypted = false,
-                },
-                new ApiModel
-                {
-                    ApiExSettingName = "Special",
-                    Path = "http://localhost:9999/api/persons/data",
-                    IsFree = false,
-                    ChargeCode = "0",
-                    ChargeCodeName = "code",
-                    IsResultEncrypted = false,
-                }
-            };
         }
     }
 }

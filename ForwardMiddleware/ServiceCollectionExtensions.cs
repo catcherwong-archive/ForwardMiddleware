@@ -13,6 +13,7 @@
     {
         public static IServiceCollection AddForward(this IServiceCollection services, IConfiguration configuration, ILoggerFactory loggerFactory = null)
         {
+            services.AddSingleton<ApiConfig.IApiConfigHandler, ApiConfig.DefaultApiConfigHandler>();
             services.AddSingleton<Charge.IChargeHandler, Charge.DefaultChargeHandler>();
 
             var apiExSettingsOptions = new ApiExSettingsOptions();
