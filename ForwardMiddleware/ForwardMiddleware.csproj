@@ -16,4 +16,7 @@
     <Compile Remove="DownSettings.cs" />
     <Compile Remove="IPolicyFactory.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Charge\" />
+  </ItemGroup>
 </Project>

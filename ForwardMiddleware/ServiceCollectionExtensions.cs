@@ -7,11 +7,14 @@
     using Microsoft.Extensions.DependencyInjection;
     using Microsoft.Extensions.Logging;
     using Polly;
+
     
     public static class ServiceCollectionExtensions
     {
         public static IServiceCollection AddForward(this IServiceCollection services, IConfiguration configuration, ILoggerFactory loggerFactory = null)
-        {                        
+        {
+            services.AddSingleton<Charge.IChargeHandler, Charge.DefaultChargeHandler>();
+
             var apiExSettingsOptions = new ApiExSettingsOptions();
             configuration.GetSection("ApiExSettings").Bind(apiExSettingsOptions);
             var apiModels = apiExSettingsOptions.Settings;

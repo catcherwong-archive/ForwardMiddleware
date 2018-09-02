@@ -3,12 +3,11 @@
     using System;
     using System.Collections.Generic;
     using System.IO;
-    using System.Linq;
     using System.Net.Http;
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Http;
-    using Newtonsoft.Json.Linq;
     using Microsoft.Extensions.Logging;
+    using Charge;
 
     public class ForwardMiddleware
     {
@@ -24,6 +23,7 @@
         private readonly RequestDelegate _next;
         private readonly IHttpClientFactory _clientFactory;
         private readonly ILogger _logger;
+        private readonly IChargeHandler _chargeHandler;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="T:ForwardMiddleware.ForwardMiddleware"/> class.
@@ -31,11 +31,12 @@
         /// <param name="next">Next.</param>
         /// <param name="loggerFactory">Logger factory.</param>
         /// <param name="clientFactory">Client factory.</param>
-        public ForwardMiddleware(RequestDelegate next, ILoggerFactory loggerFactory, IHttpClientFactory clientFactory)
+        public ForwardMiddleware(RequestDelegate next, ILoggerFactory loggerFactory, IHttpClientFactory clientFactory,IChargeHandler chargeHandler)
         {
             _next = next;
             _logger = loggerFactory.CreateLogger<ForwardMiddleware>();
             _clientFactory = clientFactory;
+            _chargeHandler = chargeHandler;
         }
 
         /// <summary>
@@ -85,8 +86,8 @@
                 var str = await res.Content.ReadAsStringAsync();
                 _logger.LogDebug($"response res => {str}");
 
-                DoCharge(downSettings, str);
-
+                if (_chargeHandler.IsNeedToCharged) await _chargeHandler.DoChargeAsync(downSettings, str);
+                    
                 await httpContext.Response.WriteAsync(str);
                 return;
             }
@@ -135,44 +136,6 @@
                     return memStream.ToArray();
                 }
             }
-        }
-
-        /// <summary>
-        /// Dos the charge.
-        /// </summary>
-        /// <param name="settings">Settings.</param>
-        /// <param name="json">Json.</param>
-        private void DoCharge(ApiModel settings, string json)
-        {
-            if (!settings.IsFree
-                && !string.IsNullOrWhiteSpace(settings.ChargeCode)
-                && !string.IsNullOrWhiteSpace(settings.ChargeCodeName))
-            {
-                try
-                {
-                    var jObj = JObject.Parse(json);
-
-                    if (jObj.ContainsKey(settings.ChargeCodeName))
-                    {
-                        var code = jObj[settings.ChargeCodeName].ToString();
-
-                        //charge code may split by ,
-                        var codes = settings.ChargeCode.Split(',');
-
-                        if (codes.Contains(code))
-                        {
-                            //need to charge
-                            //send msg
-                            _logger.LogDebug($"this request need to be charged => code = {code}");
-                        }
-
-                    }
-                }
-                catch (System.Exception ex)
-                {
-                    _logger.LogError(ex, $"Do charge error");
-                }
-            }
-        }
+        }             
     }
 }
